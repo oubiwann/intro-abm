@@ -11,7 +11,7 @@ end
 to-report agent-intersection [agents personality-ids]
   if agents = nobody [ report agents ]
   if personality-ids = [] [ report nobody ]
-  report turtle-set (map [x -> agents with [personality-id = x]] personality-ids)
+  report turtle-set (map [ x -> agents with [personality-id = x ]] personality-ids)
 end
 
 to-report filter-attracted-agents [agent]
@@ -26,7 +26,7 @@ end
 
 to-report agent-distances [agent agents]
   let agent-ids [who] of agents
-  report (map [x -> ([distance turtle x] of agent)] agent-ids)
+  report (map [ x -> ([distance turtle x ] of agent)] agent-ids)
 end
 
 to-report attracted-agent-distances [agent]
@@ -55,18 +55,19 @@ end
 
 to-report agent-augmented-coords [agent agents]
   let agent-ids [who] of agents
-  report (map [x -> (list [xcor] of turtle x
-                          [ycor] of turtle x
-                          (charge [distance turtle x] of agent)) ]
+  report (map [ x -> (list [xcor] of turtle x
+                           [ycor] of turtle x
+                           [distance turtle x] of agent) ]
               agent-ids)
 end
 
 to-report agent-augmented-coords-with-k [agent agents]
   let agent-ids [who] of agents
-  report (map [x -> (list [xcor] of turtle x
-                          [ycor] of turtle x
-                          (charge-with-k [distance turtle x] of agent)) ]
-              agent-ids)
+  report (map [ x -> (list [xcor] of turtle x
+                           [ycor] of turtle x
+                           0
+                           (charge-k force-multiplier ([distance turtle x] of agent))) ]
+               agent-ids)
 end
 
 to-report attracted-center-of-charge [agent]
@@ -89,22 +90,24 @@ to-report repulsed-center-of-charge [agent]
                            agents)
 end
 
-to-report attracted-center-of-charge-with-k [agent]
+to-report attracted-center-of-charge-k [agent]
   let agents (filter-attracted-agents agent)
   if agents = nobody or not any? agents [
     report agent-coords agent
   ]
-  report center-of-charge-with-k (agent-augmented-coords-with-k
-                                  agent
-                                  agents)
+  report center-of-charge-k force-multiplier
+                            (agent-augmented-coords-with-k
+                             agent
+                             agents)
 end
 
-to-report repulsed-center-of-charge-with-k [agent]
+to-report repulsed-center-of-charge-k [agent]
   let agents (filter-repulsed-agents agent)
   if agents = nobody or not any? agents [
     report agent-coords agent
   ]
-  report center-of-charge-with-k (agent-augmented-coords-with-k
+  report center-of-charge-k force-multiplier
+                            (agent-augmented-coords-with-k
                                   agent
                                   agents)
 end

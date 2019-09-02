@@ -2,63 +2,142 @@
 ;;;   Charge Support Procedures   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to-report charge [dist]
-  report (dist)^(-2)
+;; The following utility functions operate on an custom coordinate data
+;; structure:
+;;
+;;    [x-coord, y-coord, distance, charge]
+;;
+;; The x and y values must always be present, and one of distance or charge
+;; must be. If distance is provided, charge is calculated from it. If charge
+;; is provided, the distance is ignored.
+;;
+;; The empty list is treated as a nil value and is checked in the
+;; `dist-or-charge-k` function.
+
+to-report x-coord [data]
+  report item 0 data
 end
 
-to-report charge-with-k [dist]
-  report (dist)^(-2) * force-multiplier
+to-report y-coord [data]
+  report item 1 data
 end
 
-to-report summed-charge [distances]
-  report sum (map [x -> (charge x)] distances)
+to-report dist-coord [data]
+  ifelse (length data) < 3
+    [ report [] ]
+    [ report item 2 data ]
 end
+
+to-report charge-coord [data]
+  ifelse (length data) < 4
+    [ report [] ]
+    [ report item 3 data ]
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 to-report summed-coords [coords]
-  report reduce [ [acc x-y-ch] -> (list (item 0 acc + item 0 x-y-ch)
-                                        (item 1 acc + item 1 x-y-ch)) ]
+  report reduce [ [acc coord] -> (list (x-coord acc + x-coord coord)
+                                       (y-coord acc + y-coord coord)) ]
                 coords
 end
 
-to-report summed-coords-with-k [augmented-coords]
-  report reduce [ [acc x-y-ch] -> (list (item 0 acc + (item 0 x-y-ch * item 2 x-y-ch))
-                                        (item 1 acc + (item 1 x-y-ch * item 2 x-y-ch))) ]
-                augmented-coords
-end
-
-to-report center-of-charge [coords]
+to-report center-of-coords [coords]
   report map [ coord -> coord / (length coords) ]
              (summed-coords coords)
 end
 
-to-report center-of-charge-with-k [augmented-coords]
-  ;; The "center of charge" is given by the x and y components of the nearby
-  ;; personalities times their associated charge magnitudes, then divided by the
-  ;; sums of their magnitudes. This is analogous to center of mass calcualtions
-  ;; in two dimensions.
-  ;;
-  ;; Steps are as follows, for all agents:
-  ;; 1) Get their distance from self; square it and invert it. This is the
-  ;;    magnitude.
-  ;; 2) Get each xcoord and multiply by magnitude, sum the results
-  ;; 3) Sum the magnitudes and divide the results of the previous step by this
-  ;; 4) Do steps 2 & 3 for ycoords; the combination of these two results
-  ;;    represents the x,y coord of the "center of charge".
-  let summed-ch sum map [ x-y-ch -> (item 2 x-y-ch) ] augmented-coords
-  report map [ coord -> coord / summed-ch ]
-             (summed-coords-with-k augmented-coords)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to-report charge [d]
+  report charge-k 1 d
 end
 
-to-report sum-forces [xs ys]
-  ;; This procedure does the following:
-  ;; * gets the "center of charge" for attracting agents
-  ;; * gets the "center of charge" for repulsing agents
-  ;; * calculates their magnitude using the `charge-magnitude` function
-  ;; * transforms the repulsing location by putting it on the other side
-  ;;   of the agent and then treating it as attracting
-  ;; * calculates the sum of the magnitudes
-  ;; * calculates the sum of the vector components
-  ;;
-  ;; Once these steps are done, the direction can be converted to degrees so
-  ;; that the agent can face that direction, and the magnitude can be used to
-  ;; move the agent that many units in the direction it faces.
+to-report dist-or-charge [augmented-coord]
+  report dist-or-charge-k 1 augmented-coord
+end
+
+to-report x-coord-times-charge [augmented-coord]
+  report x-coord-times-charge-k 1 augmented-coord
+end
+
+to-report x-coords-times-charge [augmented-coords]
+  report x-coords-times-charge-k 1 augmented-coords
+end
+
+to-report y-coord-times-charge [augmented-coord]
+  report y-coord-times-charge-k 1 augmented-coord
+end
+
+to-report y-coords-times-charge [augmented-coords]
+  report y-coords-times-charge-k 1 augmented-coords
+end
+
+to-report summed-charge [augmented-coords]
+  report summed-charge-k 1 augmented-coords
+end
+
+to-report center-of-charge [augmented-coords]
+  report center-of-charge-k 1 augmented-coords
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Inverse square of distance
+;;
+;; This is used to ensure that the closer an agent is, the greater the impact
+;; it has.
+to-report charge-k [k d]
+  ;; print sentence "distance: " d
+  ;; print sentence "charge constant: " k
+  ifelse (is-number? d)
+    [ report k * (d)^(-2) ]
+    [ report 0 ]
+end
+
+to-report dist-or-charge-k [k augmented-coord]
+  let q (charge-coord augmented-coord)
+  ifelse (is-number? q)
+    [ report q ]
+    [ report (charge-k k (dist-coord augmented-coord)) ]
+end
+
+to-report x-coord-times-charge-k [k augmented-coord]
+  report (x-coord augmented-coord) * (dist-or-charge-k k augmented-coord)
+end
+
+to-report x-coords-times-charge-k [k augmented-coords]
+  report map [ coord -> (x-coord-times-charge-k k coord) ] augmented-coords
+end
+
+to-report y-coord-times-charge-k [k augmented-coord]
+  report (y-coord augmented-coord) * (dist-or-charge-k k augmented-coord)
+end
+
+to-report y-coords-times-charge-k [k augmented-coords]
+  report map [ coord -> (y-coord-times-charge-k k coord) ] augmented-coords
+end
+
+;; Given a set of "augmented" coordinates (x,y coords with a third element that
+;; represents the distance to an agent in question or a fourth element that
+;; represents the charge value between self and an agent in question), sum the
+;; charges.
+;;
+;; The summed charge is used in the denominator of the equation for determining
+;; the "center of charge" (analogous to center of mass).
+to-report summed-charge-k [k augmented-coords]
+  report sum map [ coord -> (dist-or-charge-k k coord) ]
+                 augmented-coords
+end
+
+;; This is the function that is analogous to the center of mass and is used to
+;; calculate the coordinates to which an agent is attracted (given a collection
+;; of other agents) and the extent to which it is attracted.
+to-report center-of-charge-k [k augmented-coords]
+  let summed-q (summed-charge-k k augmented-coords)
+  if summed-q = 0 [
+    set summed-q 1
+  ]
+  report (list (sum (x-coords-times-charge-k k augmented-coords) / summed-q)
+               (sum (y-coords-times-charge-k k augmented-coords) / summed-q))
 end

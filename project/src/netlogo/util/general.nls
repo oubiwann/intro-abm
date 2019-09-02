@@ -30,7 +30,7 @@ to-report sort-tuples [tuples]
 end
 
 to-report frequencies [data]
-  ;; Given a list of items, count the occurances of each item, returning tuples
+  ;; Given a list of items, count the occurrences of each item, returning tuples
   ;; of the items and their counts.
   ;;
   ;; Example usage:
